@@ -1,0 +1,34 @@
+name: Embr PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Run Embr PR review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EMBR_API_KEY: ${{ secrets.EMBR_API_KEY }}
+          EMBR_BASE_URL: ${{ secrets.EMBR_BASE_URL }}
+          EMBR_AGENT_ID: ${{ secrets.EMBR_AGENT_ID }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node dist/index.js

@@ -1,0 +1,19 @@
+{
+  "name": "embr-pr-reviewer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "review": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@octokit/rest": "^20.1.1",
+    "openai": "^4.77.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
