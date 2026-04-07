@@ -56,19 +56,18 @@ export async function reviewDiff(
     userContent += `\n\nAdditional reviewer instructions:\n${additionalComments}`;
   }
 
-  const url = `${EMBR_API_URL}/projects/${EMBR_PROJECT_ID}/public/chat`;
+  const url = `${EMBR_API_URL}/public/chat`;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "X-Project-Id": EMBR_PROJECT_ID!,
   };
-  if (EMBR_API_KEY) {
-    headers["Authorization"] = `Bearer ${EMBR_API_KEY}`;
-  }
 
   const response = await fetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify({
+      projectId: EMBR_PROJECT_ID,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userContent },
@@ -107,8 +106,9 @@ export async function reviewDiff(
         const data = line.slice(5).trim();
         if (data === "[DONE]") continue;
 
-        // Only process content events
+        // Only process content/token events
         if (
+          currentEvent === "token" ||
           currentEvent === "content" ||
           currentEvent === "message" ||
           currentEvent === ""
