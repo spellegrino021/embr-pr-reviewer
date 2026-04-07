@@ -1,15 +1,7 @@
 platform: nodejs
 platformVersion: "20"
-buildCommand: |
-  cd /app/client && npm ci && npm run build &&
-  cd /app/server && npm ci && npm run build &&
-  mkdir -p /output/server-dist /output/client-dist &&
-  cp -r /app/server/dist/* /output/server-dist/ &&
-  cp -r /app/client/dist/* /output/client-dist/ &&
-  cp /app/server/package.json /output/ &&
-  cp -r /app/server/node_modules /output/node_modules
 run:
   port: 8080
-  startCommand: "node server-dist/index.js"
+  startCommand: "node server/dist/index.js"
 healthCheck:
   enabled: false

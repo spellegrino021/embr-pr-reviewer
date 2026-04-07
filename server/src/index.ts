@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
-import { existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { reviewRouter } from "./routes/review.js";
 
@@ -15,10 +14,8 @@ app.use(express.json({ limit: "5mb" }));
 // API routes
 app.use("/api", reviewRouter);
 
-// Serve the React build — check Embr output layout first, then local dev layout
-const embrClientDist= path.join(__dirname, "../client-dist");
-const localClientDist = path.join(__dirname, "../../client/dist");
-const clientDist = existsSync(embrClientDist) ? embrClientDist : localClientDist;
+// Serve the React build (../../client/dist relative to server/dist/)
+const clientDist = path.join(__dirname, "../../client/dist");
 
 app.use(express.static(clientDist));
 app.get("*", (_req, res) => {
