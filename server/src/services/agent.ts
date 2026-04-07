@@ -58,6 +58,10 @@ export async function reviewDiff(
 
   const url = `${EMBR_API_URL}/public/chat`;
 
+  console.log(`[agent] Calling Foundry: POST ${url}`);
+  console.log(`[agent] Project ID: ${EMBR_PROJECT_ID}`);
+  console.log(`[agent] Message count: 2, user content length: ${userContent.length}`);
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-Project-Id": EMBR_PROJECT_ID!,
@@ -80,6 +84,8 @@ export async function reviewDiff(
     throw new Error(`Foundry agent error (${response.status}): ${text}`);
   }
 
+  console.log(`[agent] Foundry response status: ${response.status}, content-type: ${response.headers.get("content-type")}`);
+
   // Parse SSE stream — collect all content chunks
   const body = response.body;
   if (!body) throw new Error("No response body from Foundry agent");
@@ -88,25 +94,45 @@ export async function reviewDiff(
   const decoder = new TextDecoder();
   let fullContent = "";
   let buffer = "";
+  let lineCount = 0;
+  let eventCount = 0;
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
+    const chunk = decoder.decode(value, { stream: true });
+    buffer += chunk;
     const lines = buffer.split("\n");
     buffer = lines.pop() || ""; // keep incomplete line in buffer
 
     let currentEvent = "";
 
     for (const line of lines) {
+      lineCount++;
+
+      // Log first 20 raw lines for debugging
+      if (lineCount <= 20) {
+        console.log(`[agent] SSE line ${lineCount}: ${JSON.stringify(line)}`);
+      }
+
       if (line.startsWith("event:")) {
         currentEvent = line.slice(6).trim();
       } else if (line.startsWith("data:")) {
         const data = line.slice(5).trim();
-        if (data === "[DONE]") continue;
+        if (data === "[DONE]") {
+          console.log(`[agent] Received [DONE] signal`);
+          continue;
+        }
 
-        // Only process content/token events
+        eventCount++;
+
+        // Log every event type we see
+        if (eventCount <= 10) {
+          console.log(`[agent] Event #${eventCount} type="${currentEvent}" data=${data.slice(0, 200)}`);
+        }
+
+        // Process all recognized event types
         if (
           currentEvent === "token" ||
           currentEvent === "content" ||
@@ -116,21 +142,36 @@ export async function reviewDiff(
           try {
             const parsed = JSON.parse(data);
             // Handle various SSE payload shapes
-            const chunk =
+            const contentChunk =
               parsed.content ??
               parsed.choices?.[0]?.delta?.content ??
               parsed.choices?.[0]?.message?.content ??
               parsed.text ??
               "";
-            fullContent += chunk;
+            if (contentChunk) {
+              fullContent += contentChunk;
+            } else if (eventCount <= 5) {
+              console.log(`[agent] Parsed JSON but no content found. Keys: ${Object.keys(parsed).join(", ")}`);
+            }
           } catch {
-            // Non-JSON data line, skip
+            if (eventCount <= 5) {
+              console.log(`[agent] Non-JSON data line: ${data.slice(0, 100)}`);
+            }
+          }
+        } else {
+          if (eventCount <= 10) {
+            console.log(`[agent] Skipping unrecognized event type: "${currentEvent}"`);
           }
         }
       } else if (line.trim() === "") {
         currentEvent = ""; // reset on blank line (SSE event boundary)
       }
     }
+  }
+
+  console.log(`[agent] Stream complete. Lines: ${lineCount}, Events: ${eventCount}, Content length: ${fullContent.length}`);
+  if (fullContent.length > 0) {
+    console.log(`[agent] Content preview: ${fullContent.slice(0, 200)}`);
   }
 
   if (!fullContent.trim()) {
