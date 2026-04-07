@@ -15,6 +15,7 @@ export interface ReviewResult {
 
 const EMBR_API_URL = process.env.EMBR_API_URL;
 const EMBR_PROJECT_ID = process.env.EMBR_PROJECT_ID;
+const EMBR_API_KEY = process.env.EMBR_API_KEY;
 
 const SYSTEM_PROMPT = `You are a senior code reviewer. You review pull request diffs and return structured findings.
 
@@ -57,9 +58,16 @@ export async function reviewDiff(
 
   const url = `${EMBR_API_URL}/projects/${EMBR_PROJECT_ID}/public/chat`;
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (EMBR_API_KEY) {
+    headers["Authorization"] = `Bearer ${EMBR_API_KEY}`;
+  }
+
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
