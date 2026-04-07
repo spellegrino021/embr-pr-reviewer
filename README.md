@@ -1,95 +1,64 @@
-# embr-pr-reviewer
+# Embr PR Reviewer
 
-A GitHub Action that automatically reviews pull requests using your Embr agent via the Foundry Responses API. Posts findings as a PR comment, grouped by severity.
+AI-powered pull request reviewer — enter a GitHub repo URL and PR number, get structured code review feedback powered by an Embr Foundry agent.
 
-## What it does
+## Features
 
-On every PR open or push, the action:
-1. Fetches the diff from GitHub
-2. Sends it to your Embr agent via `/applications/{agent}/protocols/openai/responses`
-3. Gets back structured findings (severity, category, file, line range, explanation, suggestion)
-4. Posts a formatted comment on the PR — or updates the existing one on re-runs
+- **GitHub PR integration** — paste a repo URL + PR number and the diff is fetched automatically
+- **Custom instructions** — tell the reviewer what to focus on (security, error handling, etc.)
+- **Structured findings** — results grouped by severity (high/medium/low) with file, line range, explanation, and fix suggestions
+- **Foundry agent powered** — uses an Embr Foundry agent for intelligent code review
 
-**Example output:**
+## Architecture
 
-> ## Embr PR Review
-> 🟡 **Overall risk: MEDIUM**
->
-> This PR adds a new chat endpoint and refactors auth handling. Logic is mostly sound but there's a credential exposure risk and one unhandled error path.
->
-> ### 🔴 High severity (1)
-> **`src/api/chat.ts` L14** — `security`
-> API key is concatenated into the log string and will appear in CloudWatch.
-> > 💡 Use `req.headers['api-key'] ? '[REDACTED]' : 'missing'` in the log statement.
+```
+React Frontend  →  Express Backend  →  GitHub API (fetch diff)
+                                    →  Foundry /public/chat (SSE review)
+```
 
----
+## Local Development
 
-## Setup
+### Prerequisites
 
-### 1. Create the repo
+- Node.js 20+
+- An Embr project with a Foundry agent configured
+
+### Setup
 
 ```bash
-git clone https://github.com/your-org/embr-pr-reviewer
-cd embr-pr-reviewer
-npm install
+# Install all dependencies
+npm run install:all
+
+# Copy and configure environment variables
+cp .env.example server/.env
+# Edit server/.env with your EMBR_API_URL and EMBR_PROJECT_ID
+
+# Start both frontend and backend in dev mode
+npm run dev
 ```
 
-### 2. Add GitHub secrets
+The frontend runs on `http://localhost:5173` and proxies API calls to the backend on port 3001.
 
-In your GitHub repo → Settings → Secrets and variables → Actions, add:
+### Environment Variables
 
-| Secret | Value |
-|--------|-------|
-| `EMBR_API_KEY` | Your Embr API key |
-| `EMBR_BASE_URL` | `https://api.stpelleg.embr-test.windows-int.net` (or your Embr base URL) |
-| `EMBR_AGENT_ID` | The agent/application ID to use for reviews |
+| Variable | Description |
+|----------|-------------|
+| `EMBR_API_URL` | Your Embr API base URL (e.g., `https://api.your-domain.embr-test.windows-int.net`) |
+| `EMBR_PROJECT_ID` | Your Embr project ID |
+| `PORT` | Server port (default: 3001) |
 
-`GITHUB_TOKEN` is provided automatically by GitHub Actions — you don't need to add it.
-
-### 3. Push and open a PR
-
-The workflow triggers on `pull_request` events (opened, synchronize, reopened). Open any PR and the bot will comment within ~30 seconds.
-
----
-
-## Using it in another repo
-
-You don't have to run the reviewer in the same repo it reviews. To use it as a reusable action from another repo:
-
-```yaml
-# .github/workflows/pr-review.yml in the target repo
-name: Embr PR Review
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-jobs:
-  review:
-    uses: your-org/embr-pr-reviewer/.github/workflows/pr-review.yml@main
-    secrets:
-      EMBR_API_KEY: ${{ secrets.EMBR_API_KEY }}
-      EMBR_BASE_URL: ${{ secrets.EMBR_BASE_URL }}
-      EMBR_AGENT_ID: ${{ secrets.EMBR_AGENT_ID }}
-```
-
----
-
-## Local testing
+## Deploy to Embr
 
 ```bash
-cp .env.example .env
-# fill in .env values
-
-# Run against a real PR
-PR_NUMBER=42 GITHUB_REPOSITORY=your-org/your-repo npx tsx src/index.ts
+embr login
+embr quickstart deploy owner/embr-pr-reviewer
 ```
 
----
+Set the environment variables (`EMBR_API_URL`, `EMBR_PROJECT_ID`) in your Embr project settings.
 
-## Customising the review prompt
+## Production Build
 
-Edit the prompt in `src/reviewer.ts` to focus on what matters for your codebase — security rules, naming conventions, architectural constraints, etc. The structured output schema is in the same file; add or remove fields to match what you want the agent to return.
-
-## Why the Responses API and not Threads/Runs?
-
-The Responses API is a single HTTP call — no thread creation, no polling. It works with a plain API key (no `agents/action` RBAC role required) and is OpenAI-compatible, so the standard `openai` npm package works out of the box. For a stateless, single-shot use case like PR review, it's the right tool.
+```bash
+npm run build    # Builds both client and server
+npm start        # Starts the Express server (serves React build + API)
+```

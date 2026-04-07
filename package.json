@@ -1,19 +1,19 @@
 {
   "name": "embr-pr-reviewer",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsx src/index.ts",
-    "review": "tsx src/index.ts"
-  },
-  "dependencies": {
-    "@octokit/rest": "^20.1.1",
-    "openai": "^4.77.0"
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "start": "cd server && npm start",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "concurrently": "^9.0.0"
   }
 }
